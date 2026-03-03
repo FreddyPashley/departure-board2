@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heathrow RFE '26 - Planner</title>
+    <link rel="stylesheet" href="/static/planner.css">
+</head>
+<body>
+
+<div class="planner">
+
+    <div class="topbar">
+        <div class="topbar-left">
+            <img src="/static/xu.png" class="topbar-logo" alt="">
+            <span class="topbar-title">Heathrow RFE 2026 - Planner</span>
+        </div>
+        <div class="topbar-right">
+            <span id="clock"></span>
+            <span id="status-dot" class="dot dot-ok"></span>
+        </div>
+    </div>
+
+    <div class="banner-section">
+        <div class="banner-bar">
+            <label>Banner:</label>
+            <input id="banner-input" type="text" placeholder="Add a banner message...">
+            <button class="btn-banner" onclick="addBanner()">Add</button>
+        </div>
+        <div id="banner-list" class="banner-list"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('departures')">Departures</button>
+        <button class="tab" onclick="switchTab('arrivals')">Arrivals</button>
+    </div>
+
+    <div id="departures-panel" class="panel">
+        <table class="planner-table">
+            <thead>
+                <tr>
+                    <th class="col-time">Time</th>
+                    <th class="col-fn">Flight</th>
+                    <th class="col-cs">Callsign</th>
+                    <th class="col-dest">Destination</th>
+                    <th class="col-ac">A/C</th>
+                    <th class="col-status">Board Status</th>
+                    <th class="col-live">Live</th>
+                    <th class="col-term">Terminal</th>
+                    <th class="col-gate">Gate</th>
+                    <th class="col-action"></th>
+                </tr>
+            </thead>
+            <tbody id="dep-body"></tbody>
+        </table>
+    </div>
+
+    <div id="arrivals-panel" class="panel hidden">
+        <table class="planner-table">
+            <thead>
+                <tr>
+                    <th class="col-time">Time</th>
+                    <th class="col-fn">Flight</th>
+                    <th class="col-cs">Callsign</th>
+                    <th class="col-dest">Origin</th>
+                    <th class="col-ac">A/C</th>
+                    <th class="col-status">Board Status</th>
+                    <th class="col-live">Live</th>
+                    <th class="col-term">Terminal</th>
+                    <th class="col-gate">Gate</th>
+                    <th class="col-action"></th>
+                </tr>
+            </thead>
+            <tbody id="arr-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span id="modal-title">Edit Gate</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="field">
+                <label>Flight</label>
+                <span id="modal-flight"></span>
+            </div>
+            <div class="field">
+                <label for="modal-terminal">Terminal</label>
+                <input id="modal-terminal" type="text" maxlength="10" placeholder="e.g. T5">
+            </div>
+            <div class="field">
+                <label for="modal-gate">Gate</label>
+                <input id="modal-gate" type="text" maxlength="10" placeholder="e.g. A14">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-save" onclick="saveGate()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var currentId = null;
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    if (tab === 'departures') {
+        document.getElementById('departures-panel').classList.remove('hidden');
+        document.getElementById('arrivals-panel').classList.add('hidden');
+        document.querySelectorAll('.tab')[0].classList.add('active');
+    } else {
+        document.getElementById('departures-panel').classList.add('hidden');
+        document.getElementById('arrivals-panel').classList.remove('hidden');
+        document.querySelectorAll('.tab')[1].classList.add('active');
+    }
+}
+
+function liveClass(state) {
+    if (state === 'Offline') return 'live-offline';
+    if (['En Route','Approach'].indexOf(state) >= 0) return 'live-enroute';
+    if (['Landed','On Blocks'].indexOf(state) >= 0) return 'live-arrived';
+    if (['Boarding','On Blocks','Departing'].indexOf(state) >= 0) return 'live-ground';
+    return 'live-other';
+}
+
+function statusClass(colour) {
+    if (colour === 'green') return 'st-green';
+    if (colour === 'red') return 'st-red';
+    if (colour === 'yellow') return 'st-yellow';
+    return '';
+}
+
+function depRow(d) {
+    return '<tr>' +
+        '<td>' + d.time + '</td>' +
+        '<td class="fn">' + d.flight_number + '</td>' +
+        '<td>' + d.callsign + '</td>' +
+        '<td>' + d.destination + ' <small class="icao">' + d.dest_icao + '</small></td>' +
+        '<td>' + d.aircraft + '</td>' +
+        '<td class="' + statusClass(d.colour) + '">' + d.status + '</td>' +
+        '<td class="' + liveClass(d.live_state) + '">' + d.live_state + '</td>' +
+        '<td>' + d.terminal + '</td>' +
+        '<td class="gate-cell">' + d.gate + '</td>' +
+        '<td><button class="btn-edit" onclick="openModal(' + d.id + ',\'' +
+            esc(d.flight_number) + ' -' + esc(d.destination) + '\',\'' +
+            esc(d.terminal) + '\',\'' + esc(d.gate) + '\')">Edit</button></td>' +
+    '</tr>';
+}
+
+function arrRow(a) {
+    return '<tr>' +
+        '<td>' + a.time + '</td>' +
+        '<td class="fn">' + a.flight_number + '</td>' +
+        '<td>' + a.callsign + '</td>' +
+        '<td>' + a.origin + ' <small class="icao">' + a.origin_icao + '</small></td>' +
+        '<td>' + a.aircraft + '</td>' +
+        '<td class="' + statusClass(a.colour) + '">' + a.status + '</td>' +
+        '<td class="' + liveClass(a.live_state) + '">' + a.live_state + '</td>' +
+        '<td>' + a.terminal + '</td>' +
+        '<td class="gate-cell">' + a.gate + '</td>' +
+        '<td><button class="btn-edit" onclick="openModal(' + a.id + ',\'' +
+            esc(a.flight_number) + ' -' + esc(a.origin) + '\',\'' +
+            esc(a.terminal) + '\',\'' + esc(a.gate) + '\')">Edit</button></td>' +
+    '</tr>';
+}
+
+function esc(s) { return (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function openModal(id, title, terminal, gate) {
+    currentId = id;
+    document.getElementById('modal-title').textContent = 'Edit Gate';
+    document.getElementById('modal-flight').textContent = title;
+    document.getElementById('modal-terminal').value = terminal;
+    document.getElementById('modal-gate').value = gate;
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    document.getElementById('modal-gate').focus();
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    currentId = null;
+}
+
+function saveGate() {
+    if (!currentId) return;
+    var terminal = document.getElementById('modal-terminal').value.trim();
+    var gate = document.getElementById('modal-gate').value.trim();
+    fetch('/api/update-gate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: currentId, terminal: terminal, gate: gate})
+    }).then(function(r){ return r.json(); }).then(function(data) {
+        if (data.ok) {
+            closeModal();
+            refresh();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown'));
+        }
+    }).catch(function(e){ alert('Network error'); });
+}
+
+function addBanner() {
+    var input = document.getElementById('banner-input');
+    var msg = input.value.trim();
+    if (!msg) return;
+    fetch('/api/banner', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'add', message: msg})
+    }).then(function(r){ return r.json(); }).then(function(data) {
+        if (data.ok) {
+            input.value = '';
+            renderBannerList(data.messages);
+        }
+    }).catch(function(e){ console.error(e); });
+}
+
+function removeBanner(idx) {
+    fetch('/api/banner', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'remove', index: idx})
+    }).then(function(r){ return r.json(); }).then(function(data) {
+        if (data.ok) renderBannerList(data.messages);
+    }).catch(function(e){ console.error(e); });
+}
+
+function renderBannerList(messages) {
+    var el = document.getElementById('banner-list');
+    if (!messages || !messages.length) { el.innerHTML = '<span class="banner-empty">No banner messages</span>'; return; }
+    var h = '';
+    messages.forEach(function(m, i) {
+        h += '<div class="banner-item"><span class="banner-item-text">' + m.replace(/</g,'&lt;') + '</span>' +
+             '<button class="btn-banner-remove" onclick="removeBanner(' + i + ')">&times;</button></div>';
+    });
+    el.innerHTML = h;
+}
+
+function loadBanner() {
+    fetch('/api/banner').then(function(r){ return r.json(); }).then(function(data) {
+        renderBannerList(data.messages || []);
+    }).catch(function(e){ console.error(e); });
+}
+
+function refresh() {
+    fetch('/api/planner').then(function(r){return r.json()}).then(function(data) {
+        var dh = '';
+        (data.departures || []).forEach(function(d){ dh += depRow(d); });
+        document.getElementById('dep-body').innerHTML = dh;
+
+        var ah = '';
+        (data.arrivals || []).forEach(function(a){ ah += arrRow(a); });
+        document.getElementById('arr-body').innerHTML = ah;
+
+        document.getElementById('clock').textContent = data.time || '';
+        document.getElementById('status-dot').className = 'dot dot-ok';
+    }).catch(function(e){
+        console.error(e);
+        document.getElementById('status-dot').className = 'dot dot-err';
+    });
+}
+
+refresh();
+loadBanner();
+setInterval(refresh, 2000);
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && currentId) saveGate();
+});
+</script>
+</body>
+</html>
