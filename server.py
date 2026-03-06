@@ -47,19 +47,19 @@ def load_airports():
         airports_cache = json.load(f)
 
 def newDep(cs):
-    with open("stats.json") as f:
+    with open(os.path.join(BASE_DIR, "stats.json")) as f:
         stats = json.load(f)
     if cs not in stats["departures"]:
         stats["departures"].append(cs)
-    with open("stats.json", "w") as f:
+    with open(os.path.join(BASE_DIR, "stats.json"), "w") as f:
         json.dump(stats, f, skipkeys=True, indent=4)
 
 def newArr(cs):
-    with open("stats.json") as f:
+    with open(os.path.join(BASE_DIR, "stats.json")) as f:
         stats = json.load(f)
     if cs not in stats["arrivals"]:
         stats["arrivals"].append(cs)
-    with open("stats.json", "w") as f:
+    with open(os.path.join(BASE_DIR, "stats.json"), "w") as f:
         json.dump(stats, f, skipkeys=True, indent=4)
 
 
