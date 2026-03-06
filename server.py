@@ -35,7 +35,7 @@ banner_messages = ["Welcome to the Heathrow RFE 2026!",
                    "ATC Feedback: bit.ly/XUFeedback"]
 
 def updateBanner():
-    with open("stats.json") as f:
+    with open(os.path.join(BASE_DIR, "stats.json")) as f:
         s = json.load(f)
     banner_messages[2] = f"Departures: {len(s['departures'])} Arrivals: {len(s['arrivals'])}"
 
