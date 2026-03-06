@@ -286,7 +286,7 @@ def build_board():
         arr = live.get("arrivalId")
 
         flight_number = slot["flight_number"] if slot else cs
-        gate = slot["gate"][:3] if slot else "000"
+        gate = slot["gate"][:3] if slot else ""
 
         if dep == AIRPORT_ICAO:
 
@@ -299,7 +299,7 @@ def build_board():
                     "flight_number": flight_number,
                     "status": status,
                     "colour": colour,
-                    "gate": slot.get(gate) if slot else "000"
+                    "gate": slot.get(gate) if slot else ""
                 })
 
         if arr == AIRPORT_ICAO:
