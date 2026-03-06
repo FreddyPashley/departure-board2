@@ -11,14 +11,14 @@
 
         <div class="event-bar">
             <div class="event-left">
-                <img src="/static/xu.png" class="event-logo" alt="">
+                <img src="/static/xu2.png" class="event-logo" alt="">
                 <span>Heathrow RFE 2026</span>
             </div>
             <div class="event-center">
                 <span id="page-indicator"></span>
             </div>
             <div class="event-right">
-                <span id="clock"></span>
+                <span id="clock"></span><span>&nbsp;&nbsp;&nbsp;Sat 7 March</span>
             </div>
         </div>
 
@@ -50,27 +50,39 @@
             </div>
             <div class="board-col">
                 <table class="board-table arr-table">
-                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"></colgroup>
-                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th></tr></thead>
+                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"><col class="col-gate"></colgroup>
+                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
                     <tbody id="arr1" class="board-body"></tbody>
                 </table>
             </div>
             <div class="board-col">
                 <table class="board-table arr-table">
-                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"></colgroup>
-                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th></tr></thead>
+                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"><col class="col-gate"></colgroup>
+                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
                     <tbody id="arr2" class="board-body"></tbody>
                 </table>
             </div>
         </div>
 
-        <div class="banner-wrap"><div class="banner"><span class="banner-text">Welcome to the Heathrow RFE 2026!</span></div></div>
-    </div>
+        <div class="banner-wrap">
+            <div class="banner">
+                <span class="banner-text"></span>
+            </div>
+        </div>
+
+<script type="text/javascript">
+    var clockElement = document.getElementById('clock');
+    function clock() {
+        const now = new Date();
+        clockElement.textContent = now.toTimeString().split(' ')[0];
+    }
+    setInterval(clock, 1000);
+</script>
 
 <script>
 /* Tuneable settings */
-var PAGE1_STAY     = 20;
-var PAGE2_STAY     = 10;
+var PAGE1_STAY     = 60;
+var PAGE2_STAY     = 20;
 var FADE_DURATION  = 3;
 var ROW_STAGGER    = 0.06;
 var FETCH_INTERVAL = 2;
@@ -110,6 +122,7 @@ function arrRowAnim(a, i) {
         '<td class="destination">' + esc(a.origin) + '</td>' +
         '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
         '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
+        '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
     '</tr>';
 }
 
@@ -129,6 +142,7 @@ function arrRow(a) {
         '<td class="destination">' + esc(a.origin) + '</td>' +
         '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
         '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
+        '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
     '</tr>';
 }
 
@@ -164,7 +178,13 @@ function render(animated) {
         fillWith('arr2', s.a.slice(MAX, MAX * 2), arrRow, 4, MAX, false);
     }
     var hasPage2 = allDeps.length > PER_PAGE || allArrs.length > PER_PAGE;
-    document.getElementById('page-indicator').textContent = hasPage2 ? 'Page ' + (currentPage + 1) + ' of 2' : '';
+    var ofT;
+    if (hasPage2) {
+        ofT = '2';
+    } else {
+        ofT = '1';
+    }
+    document.getElementById('page-indicator').textContent = 'PAGE ' + (currentPage + 1) + ' OF ' + ofT;
 }
 
 function flipPage() {
@@ -201,15 +221,13 @@ function fetchData() {
     fetch('/api/board').then(function(r) { return r.json(); }).then(function(data) {
         allDeps = data.departures || [];
         allArrs = data.arrivals || [];
-        document.getElementById('clock').textContent = data.time || '';
         if (data.banner && data.banner.length) {
             var txt = data.banner.join('  \u00a0\u00a0\u2022\u00a0\u00a0  ');
-            document.querySelectorAll('.banner-text').forEach(function(el) {
-                el.textContent = txt;
-            });
+            document.querySelectorAll('.banner-text').forEach(el => el.textContent = txt);
         }
     }).catch(function(e) { console.error(e); });
 }
+
 
 /* Divide available height equally: 1 thead + MAX rows + 1 banner */
 function setRowHeight() {

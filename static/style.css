@@ -19,7 +19,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     position: relative;
-    background: #003580;
+    background: #2B0B50;
     padding: 0.6vh 1.2vw;
     min-height: 38px;
     width: 100%;
@@ -39,7 +39,7 @@ html, body {
 
 .event-logo {
     height: 1.6vw;
-    filter: brightness(0) invert(1);
+    /* filter: brightness(0) invert(0); */
 }
 
 /* Centered page indicator via absolute positioning */
@@ -52,6 +52,10 @@ html, body {
     font-weight: bold;
     letter-spacing: 0.03em;
     white-space: nowrap;
+}
+
+.page-indicator {
+    font-weight: normal !important;
 }
 
 .event-right {
@@ -121,14 +125,10 @@ html, body {
 
 /* Departure columns: time | destination | flight | status | stand */
 .col-time       { width: 12%; }
-.col-dest       { width: 30%; }
-.col-flight     { width: 17%; }
-.col-status     { width: 27%; }
-.col-gate       { width: 14%; }
-
-/* Arrival columns: time | origin | flight | status */
-.col-origin     { width: 38%; }
-.col-status-arr { width: 33%; }
+.col-dest, .col-origin       { width: 25%; }
+.col-flight     { width: 20%; }
+.col-status, .col-status-arr     { width: 30%; }
+.col-gate       { width: 13%; }
 
 .board-table {
     width: 100%;
@@ -193,9 +193,8 @@ html, body {
 .gate-cell {
     color: #dadb00 !important;
     font-weight: bold;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-variant-numeric: tabular-nums;
     letter-spacing: 0.05em;
+    font-size: 1.1em !important;
 }
 
 .status-cell {
@@ -234,10 +233,6 @@ html, body {
     white-space: pre !important;
 }
 
-.banner-wrap {
-    flex-shrink: 0;
-}
-
 .banner {
     background: #2B0B50;
     color: rgba(255,255,255,0.85);
@@ -247,18 +242,17 @@ html, body {
     letter-spacing: 0.02em;
     height: var(--row-h, 2.4vh);
     display: flex;
-    align-items: center;
+    align-items: center;      /* vertical centering */
+    justify-content: center;  /* horizontal centering */
     overflow: hidden;
-    position: relative;
     width: 100%;
 }
 
 .banner-text {
-    display: inline-block;
-    white-space: nowrap;
-    position: absolute;
-    animation: marquee 40s linear infinite;
+    white-space: nowrap;      /* keep text on one line */
+    position: static;         /* normal flow, no absolute needed */
 }
+
 
 @keyframes marquee {
     0%   { left: 100%; }

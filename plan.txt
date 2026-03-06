@@ -1,0 +1,34 @@
+DEPARTURES:
+
+< 30mins
+Gate shown XX:XX (white) (SOBT - 30mins)
+
+30mins - 5mins
+Boarding (green)
+
+5mins
+Flight closing (yellow)
+
+OFF BLOCKS
+Gate closed (red)
+
+DEPARTED / INITIAL CLIMB
+kill
+
+
+ARRIVALS:
+
+CONNECTED (on ground)
+Scheduled (white)
+
+AIRBORNE
+Expected XX:XX (white) (eta from GS)
+
+LANDED
+Landed (white)
+
+ON BLOCKS
+Arrived (green)
+
+ON BLOCKS + 4mins
+kill
