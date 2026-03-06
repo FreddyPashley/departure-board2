@@ -14,7 +14,7 @@ DB_HOST      = "localhost"
 DB_USER      = "root"
 DB_PASS      = ""
 FLIGHTS_DB   = "xuivao_rfe"
-AIRPORT_ICAO = "SKBO"
+AIRPORT_ICAO = "EGLL"
 WHAZZUP_URL  = "https://api.ivao.aero/v2/tracker/whazzup"
 ROWS_PER_COL = 22
 

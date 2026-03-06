@@ -1,11 +1,6 @@
 {
     "departures": [
-        "BEP100",
-        "HFM640P"
     ],
     "arrivals": [
-        "AVA4561",
-        "CNT2414",
-        "AVA1357"
     ]
 }
