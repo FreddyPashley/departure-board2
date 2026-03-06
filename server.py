@@ -8,7 +8,7 @@ import json
 import os
 
 FLIGHTS_SOURCE = "file"          # "db" or "file"
-FLIGHTS_FILE   = "flights.json" 
+FLIGHTS_FILE   = "flights.json"
 
 DB_HOST      = "localhost"
 DB_USER      = "root"
