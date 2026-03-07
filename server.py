@@ -39,6 +39,16 @@ def updateBanner():
         s = json.load(f)
     banner_messages[2] = f"Departures: {len(s['departures'])} Arrivals: {len(s['arrivals'])}"
 
+def getGmc(gate):
+    # GMC 1
+    gate = int(gate[:3])
+    if gate in range(209, 221) or gate in range(231, 259) or gate in ["336", "334", "332", "330", "328", "326", "357", "355", "353", "351", "701", "701"]:
+        return "1"
+    if gate in range(221, 227) or gate in range(301, 308) or gate in range(590, 596) or gate in range(363, 366) or str(gate).startswith("4") or str(gate).startswith("6") or gate in ["340", "342", "335", "331", "329", "327", "325", "323", "318", "320", "322", "332", "321", "319", "317", "316", "313", "311", "309"]:
+        return "2"
+    if gate in range(501, 584):
+        return "3"
+    return "?"
 
 def load_airports():
     global airports_cache
@@ -53,6 +63,13 @@ def newDep(cs):
         stats["departures"].append(cs)
     with open(os.path.join(BASE_DIR, "stats.json"), "w") as f:
         json.dump(stats, f, skipkeys=True, indent=4)
+    
+    with open(os.path.join(BASE_DIR, "override_gates.json")) as f:
+        overrides = json.load(f)
+    if cs in overrides:
+        del overrides[cs]
+    with open(os.path.join(BASE_DIR, "override_gates.json"), "w") as f:
+        json.dump(overrides, f, skipkeys=True, indent=4)
 
 def newArr(cs):
     with open(os.path.join(BASE_DIR, "stats.json")) as f:
@@ -61,6 +78,15 @@ def newArr(cs):
         stats["arrivals"].append(cs)
     with open(os.path.join(BASE_DIR, "stats.json"), "w") as f:
         json.dump(stats, f, skipkeys=True, indent=4)
+
+
+def newArrived(cs):
+    with open(os.path.join(BASE_DIR, "arrived.json")) as f:
+        arrived = json.load(f)
+    if cs not in arrived:
+        arrived[cs] = str(datetime.datetime.now())
+    with open(os.path.join(BASE_DIR, "arrived.json"), "w") as f:
+        json.dump(arrived, f, skipkeys=True, indent=4)
 
 
 def airport_name(icao):
@@ -101,19 +127,19 @@ def load_flights_from_file():
     for item in data:
         if item.get("type") == "table" and item.get("name") == "flights":
             for r in item.get("data", []):
-                if r.get("origin_icao") == AIRPORT_ICAO or r.get("destination_icao") == AIRPORT_ICAO:
-                    rows.append({
-                        "id":               int(r["id"]),
-                        "flight_number":    r.get("flight_number"),
-                        "callsign":         r.get("callsign"),
-                        "origin_icao":      r.get("origin_icao"),
-                        "destination_icao": r.get("destination_icao"),
-                        "departure_time":   _parse_datetime(r.get("departure_time")),
-                        "arrival_time":     _parse_datetime(r.get("arrival_time")),
-                        "aircraft_icao":    r.get("aircraft_icao"),
-                        "terminal":         r.get("terminal"),
-                        "gate":             r.get("gate")
-                    })
+                rows.append({
+                    "id":               int(r["id"]),
+                    "flight_number":    r.get("flight_number"),
+                    "callsign":         r.get("callsign"),
+                    "origin_icao":      r.get("origin_icao"),
+                    "destination_icao": r.get("destination_icao"),
+                    "departure_time":   _parse_datetime(r.get("departure_time")),
+                    "target_time":      _parse_datetime(r.get("departure_time")) - datetime.timedelta(minutes=5) if r.get("departure_time") else None,
+                    "arrival_time":     _parse_datetime(r.get("arrival_time")),
+                    "aircraft_icao":    r.get("aircraft_icao"),
+                    "gate":             r.get("gate"),
+                    "gmc":              getGmc(r.get("gate"))
+                })
             break
     rows.sort(key=lambda r: r.get("departure_time") or r.get("arrival_time") or datetime.datetime.max)
     flights_cache = rows
@@ -144,7 +170,7 @@ def fetch_whazzup():
                     "departureTime":  fp.get("departureTime"),
                     "eet":            fp.get("eet"),
                     "onGround":       track.get("onGround", True),
-                    "cs":             cs
+                    "cs":             cs,
                 }
         with whazzup_lock:
             whazzup_pilots = pilots
@@ -162,9 +188,18 @@ def whazzup_loop():
 def fmt_time(dt):
     if isinstance(dt, datetime.datetime):
         return dt.strftime("%H:%M")
-    if dt is None:
-        return ""
-    return str(dt)[:5]
+
+    if isinstance(dt, datetime.timedelta):
+        total = int(dt.total_seconds())
+        h = (total // 3600) % 24
+        m = (total % 3600) // 60
+        return f"{h:02d}:{m:02d}"
+
+    if isinstance(dt, str):
+        return dt[:5]
+
+    return ""
+
 
 
 def calc_eta(live):
@@ -204,6 +239,8 @@ def minutes_until(dt):
 
 def sort_key(dt):
     """Sort by time-of-day, wrapping times before 06:00 to end of list."""
+    if dt == "":
+        return True
     if isinstance(dt, datetime.datetime):
         total = dt.hour * 60 + dt.minute
         if total < 360:
@@ -217,27 +254,64 @@ def sort_key(dt):
 # IVAO API states: Boarding, Departing, Departed, Initial Climb,
 #                  En Route, Approach, Landed, On Blocks
 
-def dep_status(flight, live):
-    """Return (status_text, colour) for a departure."""
-    dt = flight.get("departure_time") if flight else datetime.timedelta(seconds=live.get("departureTime"))
+def dep_status(flight=None, live=None):
+    """
+    Return (status_text, colour) for a departure.
+    Handles both scheduled flights and live departures.
+    """
+
+    # Determine the departure time as a datetime object
+    if flight and flight.get("departure_time"):
+        dt = flight["departure_time"]  # datetime.datetime
+    elif live and live.get("departureTime") is not None:
+        # live.get("departureTime") is seconds since midnight UTC?
+        # Convert it to today's datetime
+        now = datetime.datetime.utcnow()
+        dt = datetime.datetime.combine(now.date(), datetime.time()) + datetime.timedelta(seconds=live["departureTime"])
+    else:
+        dt = None
+
+    # Calculate minutes until departure
+    def minutes_until(dt):
+        if not dt:
+            return 999
+        now = datetime.datetime.utcnow()
+        return (dt - now).total_seconds() / 60
+
     mins = minutes_until(dt)
 
-    st = live["state"]
+    # Determine status based on live state
+    st = live["state"] if live else None
+
+    if not st:
+        return "Scheduled", "white"
 
     if st == "Boarding":
+        with open(os.path.join(BASE_DIR, "departed.json")) as f:
+            deps = json.load(f)
+        if live["cs"] in deps["departures"]:
+            deps["departures"].remove(live["cs"])
+        with open(os.path.join(BASE_DIR, "departed.json"), "w") as f:
+            json.dump(deps, f, skipkeys=True, indent=4)
         if not flight:
-            return "Enquire Airline", "white"
-        if mins > 30:
-            return "Gate shown XX:XX", "white"
+            return "Enquire airline", "white"
         if mins > 5:
-            return "Go to Gate", "green"
-        return "Final Call", "yellow"
+            return "Go to gate", "green"
+        else:
+            return "Final call", "yellow"
 
     if st == "Departing":
-        return "Gate closed", "red"
-    
+        with open(os.path.join(BASE_DIR, "departed.json")) as f:
+            deps = json.load(f)
+        if live["cs"] not in deps["departures"]:
+            deps["departures"].append(live["cs"])
+            with open(os.path.join(BASE_DIR, "departed.json"), "w") as f:
+                json.dump(deps, f, skipkeys=True, indent=4)
+            return "Gate closed", "red"
+
     if st == "Initial Climb":
-        newDep(live["cs"])
+        if live and live.get("cs"):
+            newDep(live["cs"])
 
     # Beyond departure phase - remove from board
     if st in ("Departed", "Initial Climb", "En Route", "Approach", "Landed", "On Blocks"):
@@ -246,8 +320,11 @@ def dep_status(flight, live):
     return "Scheduled", "white"
 
 
+
 def arr_status(live):
     """Return (status_text, colour) for an arrival."""
+    if live is None:
+        return "Scheduled", "white"
     st = live["state"]
 
     # Still at departure airport
@@ -259,6 +336,7 @@ def arr_status(live):
         return "Landed", "white"
     
     if st == "On Blocks":
+        newArrived(live["cs"])
         return "Arrived", "green"
     
     # Airborne - show ETA if available, colour by delay
@@ -292,21 +370,70 @@ def build_board():
 
             status, colour = dep_status(slot or {}, live)
 
+            gate = None
+
             if status:
+                with open(os.path.join(BASE_DIR, "override_gates.json")) as f:
+                    overrides = json.load(f)
+                if flight_number in overrides:
+                    gate = overrides[flight_number]
+                    if gate == "\n": gate = None
                 deps.append({
                     "time": fmt_time(slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))),
                     "destination": airport_name(arr)[:12],
                     "flight_number": flight_number,
+                    "callsign": cs,
                     "status": status,
+                    "target_time": "XX:XX",
                     "colour": colour,
-                    "gate": slot.get(gate) if slot else ""
+                    "gate": gate if gate else (slot.get("gate") if (slot is not None and ("shown" not in status or "closed" not in status)) else ""),
+                    "pln_gate": gate if gate else (slot.get("gate") if slot else ""),
+                    "gmc": getGmc(gate) if gate else (getGmc(slot.get("gate")) if slot else "")
                 })
+                if "XX:XX" in deps[-1]["status"]:
+                    deps[-1]["status"] = deps[-1]["status"].replace("XX:XX", fmt_time((slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))) - datetime.timedelta(minutes=30)))
+                deps[-1]["target_time"] = datetime.datetime.strftime(datetime.datetime.strptime(deps[-1]["time"], "%H:%M") - datetime.timedelta(minutes=5), "%H:%M")
+
+                tobt_time = datetime.datetime.strptime(deps[-1]["time"], "%H:%M").time()
+                today = datetime.datetime.today()
+                tobt = datetime.datetime.combine(today, tobt_time)
+
+                now = datetime.datetime.now()
+
+                if now < tobt - datetime.timedelta(minutes=10):
+                    tobt_colour = "white"        # More than 10 mins before TOBT
+                elif tobt - datetime.timedelta(minutes=10) <= now <= tobt:
+                    tobt_colour = "green"        # 10 mins before TOBT up to TOBT
+                elif tobt < now <= tobt + datetime.timedelta(minutes=10):
+                    tobt_colour = "yellow"       # After TOBT up to 10 mins past
+                else:
+                    tobt_colour = "red"          # More than 10 mins past TOBT
+
+                deps[-1]["target_colour"] = tobt_colour
+
+                """
+                White before 10mins before tobt
+                Green 10mins before tobt
+                @ TOBT still green
+                after TOBT, yellow until 5 after scheduled
+                red
+                """
 
         if arr == AIRPORT_ICAO:
 
             status, colour = arr_status(live)
 
-            if status:
+            add_arr = True
+
+            if status == "Arrived":
+                with open(os.path.join(BASE_DIR, "arrived.json")) as f:
+                    arrived = json.load(f)
+                if live["cs"] in arrived:
+                    arr_time = _parse_datetime(arrived[live["cs"]].split(".")[0])
+                    if datetime.datetime.now() >= arr_time + datetime.timedelta(minutes=4):
+                        add_arr = False
+            
+            if add_arr:
                 arrs.append({
                     "time": fmt_time(slot.get("arrival_time") if slot else calc_scheduled_arrival(live)),
                     "origin": airport_name(dep)[:12],
@@ -330,68 +457,6 @@ def build_board():
 
 
 
-def build_planner():
-    """Full flight list for the planner UI (includes all states)."""
-    flights = load_flights_from_file()
-    with whazzup_lock:
-        pilots = whazzup_pilots.copy()
-
-    deps = []
-    arrs = []
-
-    for f in flights:
-        cs = f["callsign"]
-        live = pilots.get(cs)
-        live_state = live["state"] if live else "Offline"
-
-        if f["origin_icao"] == AIRPORT_ICAO:
-            status, colour = dep_status(f, live)
-            if status is None:
-                status, colour = "En Route", "white"
-            deps.append({
-                "id":            f["id"],
-                "time":          fmt_time(f["departure_time"]),
-                "destination":   airport_name(f["destination_icao"]),
-                "dest_icao":     f["destination_icao"],
-                "flight_number": f["flight_number"] or cs,
-                "callsign":      cs,
-                "aircraft":      f["aircraft_icao"] or "",
-                "status":        status,
-                "colour":        colour,
-                "live_state":    live_state,
-                "terminal":      f["terminal"] or "",
-                "gate":          f["gate"] or "",
-                "_sort":         sort_key(f["departure_time"]),
-            })
-
-        if f["destination_icao"] == AIRPORT_ICAO:
-            status, colour = arr_status(live)
-            arrs.append({
-                "id":            f["id"],
-                "time":          fmt_time(f["arrival_time"]),
-                "origin":        airport_name(f["origin_icao"]),
-                "origin_icao":   f["origin_icao"],
-                "flight_number": f["flight_number"] or cs,
-                "callsign":      cs,
-                "aircraft":      f["aircraft_icao"] or "",
-                "status":        status,
-                "colour":        colour,
-                "live_state":    live_state,
-                "terminal":      f["terminal"] or "",
-                "gate":          f["gate"] or "",
-                "_sort":         sort_key(f["arrival_time"]),
-            })
-
-    deps.sort(key=lambda x: x["_sort"])
-    arrs.sort(key=lambda x: x["_sort"])
-    for d in deps:
-        del d["_sort"]
-    for a in arrs:
-        del a["_sort"]
-
-    return {"departures": deps, "arrivals": arrs}
-
-
 @app.route("/")
 def board():
     return flask.render_template("board.html", max_rows=ROWS_PER_COL)
@@ -399,7 +464,7 @@ def board():
 
 @app.route("/planner")
 def planner():
-    return flask.render_template("planner.html")
+    return flask.render_template("planner2.html", max_rows=ROWS_PER_COL)
 
 
 @app.route("/api/board")
@@ -412,18 +477,28 @@ def api_board():
     return flask.jsonify(data)
 
 
-@app.route("/api/planner")
-def api_planner():
-    data = build_planner()
-    now = datetime.datetime.utcnow()
-    data["time"] = f"{now.strftime('%H:%M')} | 7th March"
-    return flask.jsonify(data)
-
-
 @app.route("/api/banner", methods=["GET"])
 def api_banner_get():
     return flask.jsonify({"messages": banner_messages})
 
+@app.route("/update_gate", methods=["POST"])
+def update_gate():
+    data = flask.request.json
+
+    id = data["id"]
+    text = data["text"]
+
+    path = "override_gates.json"
+
+    with open(os.path.join(BASE_DIR, path)) as f:
+        overrides = json.load(f)
+
+    overrides[id] = text
+
+    with open(os.path.join(BASE_DIR, path), "w") as f:
+        json.dump(overrides, f, skipkeys=True, indent=4)
+
+    return flask.jsonify({"status": "ok"})
 
 @app.route("/api/banner", methods=["POST"])
 def api_banner_post():

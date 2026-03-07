@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heathrow RFE 2026 - Planner</title>
+    <link rel="stylesheet" href="/static/styleP.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="boards">
+            <div class="board-col">
+                <table class="board-table dep-table">
+                    <colgroup>
+                        <col class="col-pln-time">
+                        <col class="col-pln-dest">
+                        <col class="col-pln-flight">
+                        <col class="col-pln-tobt">
+                        <col class="col-pln-gate">
+                        <col class="col-pln-gmc">
+                    </colgroup>
+                    <thead>
+                        <tr class="dep-head">
+                            <th><span id="clock"></span></th>
+                            <th>Destination</th>
+                            <th>Callsign</th>
+                            <th>TOBT</th>
+                            <th class="stand">Stand</th>
+                            <th class=stand>GMC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dep1" class="board-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        var clockElement = document.getElementById('clock');
+        function clock() {
+            const now = new Date();
+            clockElement.textContent = now.toTimeString().split(' ')[0];
+        }
+        setInterval(clock, 1000);
+    </script>
+
+    <script>
+        var MAX = {{ max_rows }};
+        var PER_PAGE = MAX * 2;
+        var FETCH_INTERVAL = 2;
+        var isEditing = false;
+
+        var allDeps = [];
+        var allArrs = [];
+        var currentPage = 0;
+        var isAnimating = false;
+        var flipTimeout = null;
+
+        function esc(s) {
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function depRow(d) {
+            return '<tr>' +
+                '<td class="time-cell">' + esc(d.time) + '</td>' +
+                '<td class="destination">' + esc(d.destination) + '</td>' +
+                '<td class="flight-cell">' + esc(d.callsign) + '</td>' +
+                '<td class="target-cell ' + esc(d.target_colour) + '">' + esc(d.target_time) + '</td>' +
+                '<td class="gate-cell stand editable" data-id="' + esc(d.flight_number) + '">' + esc(d.pln_gate) + '</td>' +
+                '<td class="gmc-cell stand">' + esc(d.gmc) + '</td>' +
+                '</tr>';
+        }
+
+        document.addEventListener("click", function(e) {
+
+            if (!e.target.classList.contains("editable")) return;
+
+            const cell = e.target;
+
+            isEditing = true;
+            cell.contentEditable = true;
+            cell.focus();
+
+
+            function save() {
+                isEditing = false;
+                cell.contentEditable = false;
+
+                fetch("/update_gate", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        id: cell.dataset.id,
+                        text: cell.innerText
+                    })
+                });
+
+                cell.removeEventListener("blur", save);
+            }
+
+            cell.addEventListener("blur", save);
+        });
+
+
+        function blank(c) { return '<tr class="blank-row"><td colspan="' + c + '"></td></tr>'; }
+
+        function fillWith(id, items, fn, cols, max, indexed) {
+            var h = '';
+            var n = Math.min(items.length, max);
+            for (var i = 0; i < n; i++) h += indexed ? fn(items[i], i) : fn(items[i]);
+            for (var i = n; i < max; i++) h += blank(cols);
+            document.getElementById(id).innerHTML = h;
+        }
+
+        function getSlices() {
+            var offset = currentPage * PER_PAGE;
+            return {
+                d: allDeps.slice(offset, offset + PER_PAGE),
+                a: allArrs.slice(offset, offset + PER_PAGE)
+            };
+        }
+
+        function render(animated) {
+            var s = getSlices();
+            fillWith('dep1', s.d.slice(0, MAX), depRow, 6, MAX, false);
+        }
+
+
+        function fetchData() {
+            fetch('/api/board').then(function (r) { return r.json(); }).then(function (data) {
+                allDeps = data.departures || [];
+                allArrs = data.arrivals || [];
+                if (data.banner && data.banner.length) {
+                    var txt = data.banner.join('  \u00a0\u00a0\u2022\u00a0\u00a0  ');
+                    document.querySelectorAll('.banner-text').forEach(el => el.textContent = txt);
+                }
+            }).catch(function (e) { console.error(e); });
+        }
+
+
+        /* Divide available height equally: 1 thead + MAX rows + 1 banner */
+        function setRowHeight() {
+            var boards = document.querySelector('.boards');
+            var h = boards.clientHeight;
+            var rowH = h / (MAX + 2);
+            document.documentElement.style.setProperty('--row-h', rowH + 'px');
+        }
+
+        fetchData();
+        setTimeout(function () {
+            setRowHeight();
+            render(false);
+            setInterval(fetchData, FETCH_INTERVAL * 1000);
+            setInterval(function () {
+                if (!isEditing) render();
+            }, 1000);
+        }, 600);
+        window.addEventListener('resize', setRowHeight);
+    </script>
+</body>
+
+</html>

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heathrow RFE '26 - Board</title>
+    <title>Heathrow RFE 2026 - Board</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
     <div class="container">
 
@@ -36,29 +38,85 @@
         <div class="boards">
             <div class="board-col">
                 <table class="board-table dep-table">
-                    <colgroup><col class="col-time"><col class="col-dest"><col class="col-flight"><col class="col-status"><col class="col-gate"></colgroup>
-                    <thead><tr class="dep-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
+                    <colgroup>
+                        <col class="col-time">
+                        <col class="col-dest">
+                        <col class="col-flight">
+                        <col class="col-status">
+                        <col class="col-gate">
+                    </colgroup>
+                    <thead>
+                        <tr class="dep-head">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="stand">Stand</th>
+                        </tr>
+                    </thead>
                     <tbody id="dep1" class="board-body"></tbody>
                 </table>
             </div>
             <div class="board-col">
                 <table class="board-table dep-table">
-                    <colgroup><col class="col-time"><col class="col-dest"><col class="col-flight"><col class="col-status"><col class="col-gate"></colgroup>
-                    <thead><tr class="dep-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
+                    <colgroup>
+                        <col class="col-time">
+                        <col class="col-dest">
+                        <col class="col-flight">
+                        <col class="col-status">
+                        <col class="col-gate">
+                    </colgroup>
+                    <thead>
+                        <tr class="dep-head">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="stand">Stand</th>
+                        </tr>
+                    </thead>
                     <tbody id="dep2" class="board-body"></tbody>
                 </table>
             </div>
             <div class="board-col">
                 <table class="board-table arr-table">
-                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"><col class="col-gate"></colgroup>
-                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
+                    <colgroup>
+                        <col class="col-time">
+                        <col class="col-origin">
+                        <col class="col-flight">
+                        <col class="col-status-arr">
+                        <col class="col-gate">
+                    </colgroup>
+                    <thead>
+                        <tr class="arr-head">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="stand">Stand</th>
+                        </tr>
+                    </thead>
                     <tbody id="arr1" class="board-body"></tbody>
                 </table>
             </div>
             <div class="board-col">
                 <table class="board-table arr-table">
-                    <colgroup><col class="col-time"><col class="col-origin"><col class="col-flight"><col class="col-status-arr"><col class="col-gate"></colgroup>
-                    <thead><tr class="arr-head"><th></th><th></th><th></th><th></th><th class="stand">Stand</th></tr></thead>
+                    <colgroup>
+                        <col class="col-time">
+                        <col class="col-origin">
+                        <col class="col-flight">
+                        <col class="col-status-arr">
+                        <col class="col-gate">
+                    </colgroup>
+                    <thead>
+                        <tr class="arr-head">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="stand">Stand</th>
+                        </tr>
+                    </thead>
                     <tbody id="arr2" class="board-body"></tbody>
                 </table>
             </div>
@@ -70,185 +128,186 @@
             </div>
         </div>
 
-<script type="text/javascript">
-    var clockElement = document.getElementById('clock');
-    function clock() {
-        const now = new Date();
-        clockElement.textContent = now.toTimeString().split(' ')[0];
-    }
-    setInterval(clock, 1000);
-</script>
+        <script type="text/javascript">
+            var clockElement = document.getElementById('clock');
+            function clock() {
+                const now = new Date();
+                clockElement.textContent = now.toTimeString().split(' ')[0];
+            }
+            setInterval(clock, 1000);
+        </script>
 
-<script>
-/* Tuneable settings */
-var PAGE1_STAY     = 60;
-var PAGE2_STAY     = 20;
-var FADE_DURATION  = 3;
-var ROW_STAGGER    = 0.06;
-var FETCH_INTERVAL = 2;
+        <script>
+            /* Tuneable settings */
+            var PAGE1_STAY = 60;
+            var PAGE2_STAY = 20;
+            var FADE_DURATION = 3;
+            var ROW_STAGGER = 0.06;
+            var FETCH_INTERVAL = 2;
 
-var MAX = {{ max_rows }};
-var PER_PAGE = MAX * 2;
+            var MAX = {{ max_rows }};
+            var PER_PAGE = MAX * 2;
 
-var allDeps = [];
-var allArrs = [];
-var currentPage = 0;
-var isAnimating = false;
-var flipTimeout = null;
+            var allDeps = [];
+            var allArrs = [];
+            var currentPage = 0;
+            var isAnimating = false;
+            var flipTimeout = null;
 
-function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+            function esc(s) {
+                var d = document.createElement('div');
+                d.textContent = s;
+                return d.innerHTML;
+            }
 
-function depRowAnim(d, i) {
-    var delay = (i * ROW_STAGGER).toFixed(2);
-    var dur = (FADE_DURATION * 0.4).toFixed(2);
-    return '<tr class="row-anim" style="animation-delay:' + delay + 's;animation-duration:' + dur + 's">' +
-        '<td class="time-cell">' + esc(d.time) + '</td>' +
-        '<td class="destination">' + esc(d.destination) + '</td>' +
-        '<td class="flight-cell">' + esc(d.flight_number) + '</td>' +
-        '<td class="status-cell ' + d.colour + '">' + esc(d.status) + '</td>' +
-        '<td class="gate-cell stand">' + esc(d.gate) + '</td>' +
-    '</tr>';
-}
+            function depRowAnim(d, i) {
+                var delay = (i * ROW_STAGGER).toFixed(2);
+                var dur = (FADE_DURATION * 0.4).toFixed(2);
+                return '<tr class="row-anim" style="animation-delay:' + delay + 's;animation-duration:' + dur + 's">' +
+                    '<td class="time-cell">' + esc(d.time) + '</td>' +
+                    '<td class="destination">' + esc(d.destination) + '</td>' +
+                    '<td class="flight-cell">' + esc(d.flight_number) + '</td>' +
+                    '<td class="status-cell ' + d.colour + '">' + esc(d.status) + '</td>' +
+                    '<td class="gate-cell stand">' + esc(d.gate) + '</td>' +
+                    '</tr>';
+            }
 
-function arrRowAnim(a, i) {
-    var delay = (i * ROW_STAGGER).toFixed(2);
-    var dur = (FADE_DURATION * 0.4).toFixed(2);
-    return '<tr class="row-anim" style="animation-delay:' + delay + 's;animation-duration:' + dur + 's">' +
-        '<td class="time-cell">' + esc(a.time) + '</td>' +
-        '<td class="destination">' + esc(a.origin) + '</td>' +
-        '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
-        '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
-        '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
-    '</tr>';
-}
+            function arrRowAnim(a, i) {
+                var delay = (i * ROW_STAGGER).toFixed(2);
+                var dur = (FADE_DURATION * 0.4).toFixed(2);
+                return '<tr class="row-anim" style="animation-delay:' + delay + 's;animation-duration:' + dur + 's">' +
+                    '<td class="time-cell">' + esc(a.time) + '</td>' +
+                    '<td class="destination">' + esc(a.origin) + '</td>' +
+                    '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
+                    '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
+                    '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
+                    '</tr>';
+            }
 
-function depRow(d) {
-    return '<tr>' +
-        '<td class="time-cell">' + esc(d.time) + '</td>' +
-        '<td class="destination">' + esc(d.destination) + '</td>' +
-        '<td class="flight-cell">' + esc(d.flight_number) + '</td>' +
-        '<td class="status-cell ' + d.colour + '">' + esc(d.status) + '</td>' +
-        '<td class="gate-cell stand">' + esc(d.gate) + '</td>' +
-    '</tr>';
-}
+            function depRow(d) {
+                return '<tr>' +
+                    '<td class="time-cell">' + esc(d.time) + '</td>' +
+                    '<td class="destination">' + esc(d.destination) + '</td>' +
+                    '<td class="flight-cell">' + esc(d.flight_number) + '</td>' +
+                    '<td class="status-cell ' + d.colour + '">' + esc(d.status) + '</td>' +
+                    '<td class="gate-cell stand">' + esc(d.gate) + '</td>' +
+                    '</tr>';
+            }
 
-function arrRow(a) {
-    return '<tr>' +
-        '<td class="time-cell">' + esc(a.time) + '</td>' +
-        '<td class="destination">' + esc(a.origin) + '</td>' +
-        '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
-        '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
-        '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
-    '</tr>';
-}
+            function arrRow(a) {
+                return '<tr>' +
+                    '<td class="time-cell">' + esc(a.time) + '</td>' +
+                    '<td class="destination">' + esc(a.origin) + '</td>' +
+                    '<td class="flight-cell">' + esc(a.flight_number) + '</td>' +
+                    '<td class="status-cell pre-space ' + a.colour + '">' + esc(a.status) + '</td>' +
+                    '<td class="gate-cell stand">' + esc(a.gate) + '</td>' +
+                    '</tr>';
+            }
 
-function blank(c) { return '<tr class="blank-row"><td colspan="'+c+'"></td></tr>'; }
+            function blank(c) { return '<tr class="blank-row"><td colspan="' + c + '"></td></tr>'; }
 
-function fillWith(id, items, fn, cols, max, indexed) {
-    var h = '';
-    var n = Math.min(items.length, max);
-    for (var i = 0; i < n; i++) h += indexed ? fn(items[i], i) : fn(items[i]);
-    for (var i = n; i < max; i++) h += blank(cols);
-    document.getElementById(id).innerHTML = h;
-}
+            function fillWith(id, items, fn, cols, max, indexed) {
+                var h = '';
+                var n = Math.min(items.length, max);
+                for (var i = 0; i < n; i++) h += indexed ? fn(items[i], i) : fn(items[i]);
+                for (var i = n; i < max; i++) h += blank(cols);
+                document.getElementById(id).innerHTML = h;
+            }
 
-function getSlices() {
-    var offset = currentPage * PER_PAGE;
-    return {
-        d: allDeps.slice(offset, offset + PER_PAGE),
-        a: allArrs.slice(offset, offset + PER_PAGE)
-    };
-}
+            function getSlices() {
+                var offset = currentPage * PER_PAGE;
+                return {
+                    d: allDeps.slice(offset, offset + PER_PAGE),
+                    a: allArrs.slice(offset, offset + PER_PAGE)
+                };
+            }
 
-function render(animated) {
-    var s = getSlices();
-    if (animated) {
-        fillWith('dep1', s.d.slice(0, MAX),       depRowAnim, 5, MAX, true);
-        fillWith('dep2', s.d.slice(MAX, MAX * 2), depRowAnim, 5, MAX, true);
-        fillWith('arr1', s.a.slice(0, MAX),       arrRowAnim, 4, MAX, true);
-        fillWith('arr2', s.a.slice(MAX, MAX * 2), arrRowAnim, 4, MAX, true);
-    } else {
-        fillWith('dep1', s.d.slice(0, MAX),       depRow, 5, MAX, false);
-        fillWith('dep2', s.d.slice(MAX, MAX * 2), depRow, 5, MAX, false);
-        fillWith('arr1', s.a.slice(0, MAX),       arrRow, 4, MAX, false);
-        fillWith('arr2', s.a.slice(MAX, MAX * 2), arrRow, 4, MAX, false);
-    }
-    var hasPage2 = allDeps.length > PER_PAGE || allArrs.length > PER_PAGE;
-    var ofT;
-    if (hasPage2) {
-        ofT = '2';
-    } else {
-        ofT = '1';
-    }
-    document.getElementById('page-indicator').textContent = 'PAGE ' + (currentPage + 1) + ' OF ' + ofT;
-}
+            function render(animated) {
+                var s = getSlices();
+                if (animated) {
+                    fillWith('dep1', s.d.slice(0, MAX), depRowAnim, 5, MAX, true);
+                    fillWith('dep2', s.d.slice(MAX, MAX * 2), depRowAnim, 5, MAX, true);
+                    fillWith('arr1', s.a.slice(0, MAX), arrRowAnim, 4, MAX, true);
+                    fillWith('arr2', s.a.slice(MAX, MAX * 2), arrRowAnim, 4, MAX, true);
+                } else {
+                    fillWith('dep1', s.d.slice(0, MAX), depRow, 5, MAX, false);
+                    fillWith('dep2', s.d.slice(MAX, MAX * 2), depRow, 5, MAX, false);
+                    fillWith('arr1', s.a.slice(0, MAX), arrRow, 4, MAX, false);
+                    fillWith('arr2', s.a.slice(MAX, MAX * 2), arrRow, 4, MAX, false);
+                }
+                var hasPage2 = allDeps.length > PER_PAGE || allArrs.length > PER_PAGE;
+                var ofT;
+                if (hasPage2) {
+                    ofT = '2';
+                } else {
+                    ofT = '1';
+                }
+                document.getElementById('page-indicator').textContent = 'PAGE ' + (currentPage + 1) + ' OF ' + ofT;
+            }
 
-function flipPage() {
-    var hasPage2 = allDeps.length > PER_PAGE || allArrs.length > PER_PAGE;
-    if (!hasPage2) {
-        flipTimeout = setTimeout(flipPage, PAGE1_STAY * 1000);
-        return;
-    }
+            function flipPage() {
+                var hasPage2 = allDeps.length > PER_PAGE || allArrs.length > PER_PAGE;
+                if (!hasPage2) {
+                    flipTimeout = setTimeout(flipPage, PAGE1_STAY * 1000);
+                    return;
+                }
 
-    isAnimating = true;
-    var rows = document.querySelectorAll('.board-body tr:not(.blank-row)');
-    rows.forEach(function(row, i) {
-        var delay = ((i % MAX) * ROW_STAGGER);
-        row.style.transition = 'opacity 0.4s ease ' + delay.toFixed(2) + 's';
-        row.style.opacity = '0';
-    });
+                isAnimating = true;
+                var rows = document.querySelectorAll('.board-body tr:not(.blank-row)');
+                rows.forEach(function (row, i) {
+                    var delay = ((i % MAX) * ROW_STAGGER);
+                    row.style.transition = 'opacity 0.4s ease ' + delay.toFixed(2) + 's';
+                    row.style.opacity = '0';
+                });
 
-    var fadeOutTime = ((MAX * ROW_STAGGER) + 0.5) * 1000;
-    setTimeout(function() {
-        currentPage = (currentPage === 0) ? 1 : 0;
-        render(true);
+                var fadeOutTime = ((MAX * ROW_STAGGER) + 0.5) * 1000;
+                setTimeout(function () {
+                    currentPage = (currentPage === 0) ? 1 : 0;
+                    render(true);
 
-        var fadeInTime = (FADE_DURATION + 0.5) * 1000;
-        setTimeout(function() {
-            isAnimating = false;
-        }, fadeInTime);
+                    var fadeInTime = (FADE_DURATION + 0.5) * 1000;
+                    setTimeout(function () {
+                        isAnimating = false;
+                    }, fadeInTime);
 
-        var stayTime = (currentPage === 0) ? PAGE1_STAY : PAGE2_STAY;
-        flipTimeout = setTimeout(flipPage, stayTime * 1000);
-    }, fadeOutTime);
-}
+                    var stayTime = (currentPage === 0) ? PAGE1_STAY : PAGE2_STAY;
+                    flipTimeout = setTimeout(flipPage, stayTime * 1000);
+                }, fadeOutTime);
+            }
 
-function fetchData() {
-    fetch('/api/board').then(function(r) { return r.json(); }).then(function(data) {
-        allDeps = data.departures || [];
-        allArrs = data.arrivals || [];
-        if (data.banner && data.banner.length) {
-            var txt = data.banner.join('  \u00a0\u00a0\u2022\u00a0\u00a0  ');
-            document.querySelectorAll('.banner-text').forEach(el => el.textContent = txt);
-        }
-    }).catch(function(e) { console.error(e); });
-}
+            function fetchData() {
+                fetch('/api/board').then(function (r) { return r.json(); }).then(function (data) {
+                    allDeps = data.departures || [];
+                    allArrs = data.arrivals || [];
+                    if (data.banner && data.banner.length) {
+                        var txt = data.banner.join('  \u00a0\u00a0\u2022\u00a0\u00a0  ');
+                        document.querySelectorAll('.banner-text').forEach(el => el.textContent = txt);
+                    }
+                }).catch(function (e) { console.error(e); });
+            }
 
 
-/* Divide available height equally: 1 thead + MAX rows + 1 banner */
-function setRowHeight() {
-    var boards = document.querySelector('.boards');
-    var banner = document.querySelector('.banner-wrap');
-    var h = boards.clientHeight + banner.clientHeight;
-    var rowH = h / (MAX + 2);
-    document.documentElement.style.setProperty('--row-h', rowH + 'px');
-}
+            /* Divide available height equally: 1 thead + MAX rows + 1 banner */
+            function setRowHeight() {
+                var boards = document.querySelector('.boards');
+                var banner = document.querySelector('.banner-wrap');
+                var h = boards.clientHeight + banner.clientHeight;
+                var rowH = h / (MAX + 2);
+                document.documentElement.style.setProperty('--row-h', rowH + 'px');
+            }
 
-fetchData();
-setTimeout(function() {
-    setRowHeight();
-    render(false);
-    setInterval(fetchData, FETCH_INTERVAL * 1000);
-    setInterval(function() {
-        if (!isAnimating) render(false);
-    }, 1000);
-    flipTimeout = setTimeout(flipPage, PAGE1_STAY * 1000);
-}, 600);
-window.addEventListener('resize', setRowHeight);
-</script>
+            fetchData();
+            setTimeout(function () {
+                setRowHeight();
+                render(false);
+                setInterval(fetchData, FETCH_INTERVAL * 1000);
+                setInterval(function () {
+                    if (!isAnimating) render(false);
+                }, 1000);
+                flipTimeout = setTimeout(flipPage, PAGE1_STAY * 1000);
+            }, 600);
+            window.addEventListener('resize', setRowHeight);
+        </script>
 </body>
+
 </html>
