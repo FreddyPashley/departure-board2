@@ -366,7 +366,7 @@ def build_board():
         flight_number = slot["flight_number"] if slot else cs
         gate = slot["gate"][:3] if slot else ""
 
-        if dep == AIRPORT_ICAO:
+        if dep == AIRPORT_ICAO and live["state"] in ["Boarding", "Departing"]:
 
             status, colour = dep_status(slot or {}, live)
 
@@ -420,7 +420,7 @@ def build_board():
                     red
                     """
 
-        if arr == AIRPORT_ICAO:
+        if arr == AIRPORT_ICAO and live["state"] not in ["Boarding", "Departing", "Departed"]:
 
             status, colour = arr_status(live)
 
