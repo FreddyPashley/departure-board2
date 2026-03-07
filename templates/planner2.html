@@ -149,7 +149,7 @@
         function setRowHeight() {
             var boards = document.querySelector('.boards');
             var h = boards.clientHeight;
-            var rowH = h / (MAX + 2);
+            var rowH = h / (MAX - 2);
             document.documentElement.style.setProperty('--row-h', rowH + 'px');
         }
 

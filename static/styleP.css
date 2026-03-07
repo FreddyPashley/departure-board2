@@ -152,9 +152,9 @@ html, body {
     color: #fff;
     padding: 0 0.4vw;
     text-align: left;
-    font-size: 0.78vw;
+    font-size: 1.2em !important;
     font-weight: bold;
-    height: var(--row-h, 2.4vh);
+    height: 60px;
 }
 
 .arr-head th {
@@ -162,7 +162,7 @@ html, body {
     color: #fff;
     padding: 0 0.4vw;
     text-align: left;
-    font-size: 0.78vw;
+    font-size: 1.2em !important;
     font-weight: bold;
     height: var(--row-h, 2.4vh);
 }
@@ -188,32 +188,41 @@ html, body {
     border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
+.target-cell {
+    font-weight: bold !important; 
+    letter-spacing: 0.05em !important;
+    font-size: 1.1em !important; 
+}
+
 .time-cell {
     color: #ccc;
     font-variant-numeric: tabular-nums;
+    font-size: 1.2em !important;
 }
 
 .flight-cell {
     color: #bbb;
+    font-size: 1.2em !important;
 }
 
 .gate-cell {
     color: #dadb00 !important;
     font-weight: bold;
     letter-spacing: 0.05em;
-    font-size: 1.1em !important;
+    font-size: 1.2em !important;
 }
 
 .gmc-cell {
     color: #dadb00 !important;
     font-weight: bold;
     letter-spacing: 0.05em;
-    font-size: 1.5em !important;
+    font-size: 1.2em !important;
 }
 
 .status-cell {
     font-weight: bold;
     letter-spacing: 0.01em;
+    font-size: 1.2em !important;
 }
 
 .destination {
@@ -223,6 +232,7 @@ html, body {
     word-wrap: break-word;
     overflow-wrap: break-word;
     line-height: 1.3;
+    font-size: 1.2em !important;
 }
 
 .blank-row {

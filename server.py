@@ -248,7 +248,7 @@ def sort_key(dt):
         return total
     else:
         h = int(dt.split(":")[0])
-        return dt == "18:00" or h in range(12, 18) or True
+        return dt == "18:00" or h in range(12, 18)
 
 
 # IVAO API states: Boarding, Departing, Departed, Initial Climb,
@@ -378,46 +378,47 @@ def build_board():
                 if flight_number in overrides:
                     gate = overrides[flight_number]
                     if gate == "\n": gate = None
-                deps.append({
-                    "time": fmt_time(slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))),
-                    "destination": airport_name(arr)[:12],
-                    "flight_number": flight_number,
-                    "callsign": cs,
-                    "status": status,
-                    "target_time": "XX:XX",
-                    "colour": colour,
-                    "gate": gate if gate else (slot.get("gate") if (slot is not None and ("shown" not in status or "closed" not in status)) else ""),
-                    "pln_gate": gate if gate else (slot.get("gate") if slot else ""),
-                    "gmc": getGmc(gate) if gate else (getGmc(slot.get("gate")) if slot else "")
-                })
-                if "XX:XX" in deps[-1]["status"]:
-                    deps[-1]["status"] = deps[-1]["status"].replace("XX:XX", fmt_time((slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))) - datetime.timedelta(minutes=30)))
-                deps[-1]["target_time"] = datetime.datetime.strftime(datetime.datetime.strptime(deps[-1]["time"], "%H:%M") - datetime.timedelta(minutes=5), "%H:%M")
+                if slot is None or (slot is not None and slot.get("departure_time") is not None):
+                    deps.append({
+                        "time": fmt_time(slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))),
+                        "destination": airport_name(arr)[:12],
+                        "flight_number": flight_number,
+                        "callsign": cs,
+                        "status": status,
+                        "target_time": "XX:XX",
+                        "colour": colour,
+                        "gate": gate if gate else (slot.get("gate") if (slot is not None and ("shown" not in status or "closed" not in status)) else ""),
+                        "pln_gate": gate if gate else (slot.get("gate") if slot else ""),
+                        "gmc": getGmc(gate) if gate else (getGmc(slot.get("gate")) if slot else "")
+                    })
+                    if "XX:XX" in deps[-1]["status"]:
+                        deps[-1]["status"] = deps[-1]["status"].replace("XX:XX", fmt_time((slot.get("departure_time") if slot else datetime.timedelta(seconds=live.get("departureTime"))) - datetime.timedelta(minutes=30)))
+                    deps[-1]["target_time"] = datetime.datetime.strftime(datetime.datetime.strptime(deps[-1]["time"], "%H:%M") - datetime.timedelta(minutes=5), "%H:%M")
 
-                tobt_time = datetime.datetime.strptime(deps[-1]["time"], "%H:%M").time()
-                today = datetime.datetime.today()
-                tobt = datetime.datetime.combine(today, tobt_time)
+                    tobt_time = datetime.datetime.strptime(deps[-1]["time"], "%H:%M").time()
+                    today = datetime.datetime.today()
+                    tobt = datetime.datetime.combine(today, tobt_time)
 
-                now = datetime.datetime.now()
+                    now = datetime.datetime.now()
 
-                if now < tobt - datetime.timedelta(minutes=10):
-                    tobt_colour = "white"        # More than 10 mins before TOBT
-                elif tobt - datetime.timedelta(minutes=10) <= now <= tobt:
-                    tobt_colour = "green"        # 10 mins before TOBT up to TOBT
-                elif tobt < now <= tobt + datetime.timedelta(minutes=10):
-                    tobt_colour = "yellow"       # After TOBT up to 10 mins past
-                else:
-                    tobt_colour = "red"          # More than 10 mins past TOBT
+                    if now < tobt - datetime.timedelta(minutes=10):
+                        tobt_colour = "white"        # More than 10 mins before TOBT
+                    elif tobt - datetime.timedelta(minutes=10) <= now <= tobt:
+                        tobt_colour = "green"        # 10 mins before TOBT up to TOBT
+                    elif tobt < now <= tobt + datetime.timedelta(minutes=10):
+                        tobt_colour = "yellow"       # After TOBT up to 10 mins past
+                    else:
+                        tobt_colour = "red"          # More than 10 mins past TOBT
 
-                deps[-1]["target_colour"] = tobt_colour
+                    deps[-1]["target_colour"] = tobt_colour
 
-                """
-                White before 10mins before tobt
-                Green 10mins before tobt
-                @ TOBT still green
-                after TOBT, yellow until 5 after scheduled
-                red
-                """
+                    """
+                    White before 10mins before tobt
+                    Green 10mins before tobt
+                    @ TOBT still green
+                    after TOBT, yellow until 5 after scheduled
+                    red
+                    """
 
         if arr == AIRPORT_ICAO:
 
@@ -434,14 +435,15 @@ def build_board():
                         add_arr = False
             
             if add_arr:
-                arrs.append({
-                    "time": fmt_time(slot.get("arrival_time") if slot else calc_scheduled_arrival(live)),
-                    "origin": airport_name(dep)[:12],
-                    "flight_number": flight_number,
-                    "status": status,
-                    "colour": colour,
-                    "gate": gate
-                })
+                if slot is None or (slot is not None and slot.get("arrival_time") is not None):
+                    arrs.append({
+                        "time": fmt_time(slot.get("arrival_time") if slot else calc_scheduled_arrival(live)),
+                        "origin": airport_name(dep)[:12],
+                        "flight_number": flight_number,
+                        "status": status,
+                        "colour": colour,
+                        "gate": gate
+                    })
 
     deps2 = []
     arrs2 = []
